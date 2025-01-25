@@ -1,52 +1,81 @@
-# Prerequisites
-*.d
+#define BLYNK_TEMPLATE_ID "TMPL6uHZIDt3s"
+#define BLYNK_TEMPLATE_NAME "Quickstart Template"
+#define BLYNK_AUTH_TOKEN "a6RajLiXW0M9tq_TIpfYoM50W-Vp1fh7"
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+#include <WiFi.h>
+#include <BlynkSimpleEsp32.h>
 
-# Linker output
-*.ilk
-*.map
-*.exp
+// Replace with your network credentials
+char authToken[] = "a6RajLiXW0M9tq_TIpfYoM50W-Vp1fh7";
+char ssid[] = "wala k bng load?";
+char pass[] = "123456789";
 
-# Precompiled Headers
-*.gch
-*.pch
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+// Define your relay and flow sensor pin
+#define RELAY_PIN 3     // Pin connected to relay
+#define FLOW_SENSOR_PIN 32 // Pin connected to water flow sensor
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+volatile int flowFrequency;  // Counts the number of pulses from the flow sensor
+float flowRate = 0.0;        // Flow rate in L/min
+float totalWater = 0.0;      // Total water flow in L
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+BlynkTimer timer;
 
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
+// Flow sensor interrupt function
+void flowSensorISR() {
+  flowFrequency++;
+}
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+void setup() {
+  // Start serial communication
+  Serial.begin(115200);
+
+  // Connect to Wi-Fi
+  Blynk.begin(authToken, ssid, pass);
+
+  // Setup relay pin as output
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW); // Ensure the solenoid valve is off initially
+
+  // Setup flow sensor pin as input
+  pinMode(FLOW_SENSOR_PIN, INPUT);
+  attachInterrupt(digitalPinToInterrupt(FLOW_SENSOR_PIN), flowSensorISR, RISING);
+
+  // Set up a timer to calculate the flow rate
+  timer.setInterval(1000L, calculateFlowRate); // Run calculateFlowRate every second
+}
+
+void loop() {
+  Blynk.run();    // Handle Blynk app communication
+  timer.run();    // Handle timer tasks
+}
+
+void calculateFlowRate() {
+  flowRate = (flowFrequency / 7.5); // Calculation for flow rate in L/min (based on sensor specs)
+  flowFrequency = 0;
+
+  totalWater += flowRate / 60.0; // Add the flow rate to total water
+
+  // Send the flow rate to the Blynk app
+  Blynk.virtualWrite(V1, flowRate);   // Virtual pin V1 for flow rate display
+  Blynk.virtualWrite(V2, totalWater); // Virtual pin V2 for total water
+  
+
+  // If a certain flow rate is reached, turn on the solenoid valve (through relay)
+  if (flowRate >= 2.0) { // For example, when the flow rate is greater than or equal to 2 L/min
+    digitalWrite(RELAY_PIN, HIGH); // Turn on the solenoid valve
+  } else {
+    digitalWrite(RELAY_PIN, LOW); // Turn off Vthe solenoid valve
+  }
+}
+
+// Blynk app control to manually override the solenoid valve (optional)
+// Blynk button widget to control relay manually
+BLYNK_WRITE(V0) { 
+  int buttonState = param.asInt(); // Get button state
+  if (buttonState == 1) {
+    digitalWrite(RELAY_PIN, HIGH); // Turn on solenoid valve
+  } else {
+    digitalWrite(RELAY_PIN, LOW); // Turn off solenoid valve
+  }
+}
