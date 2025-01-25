@@ -15,14 +15,17 @@ char pass[] = "123456789";
 #define RELAY_PIN 3     // Pin connected to relay
 #define FLOW_SENSOR_PIN 32 // Pin connected to water flow sensor
 
+const int threshold = 150;
+
 volatile int flowFrequency;  // Counts the number of pulses from the flow sensor
 float flowRate = 0.0;        // Flow rate in L/min
 float totalWater = 0.0;      // Total water flow in L
 
+
 BlynkTimer timer;
 
 // Flow sensor interrupt function
-void flowSensorISR() {
+void flowSensorISR() {  
   flowFrequency++;
 }
 
@@ -60,12 +63,12 @@ void calculateFlowRate() {
   Blynk.virtualWrite(V1, flowRate);   // Virtual pin V1 for flow rate display
   Blynk.virtualWrite(V2, totalWater); // Virtual pin V2 for total water
   
-
-  // If a certain flow rate is reached, turn on the solenoid valve (through relay)
-  if (flowRate >= 2.0) { // For example, when the flow rate is greater than or equal to 2 L/min
+if (flowRate >= threshold) {
     digitalWrite(RELAY_PIN, HIGH); // Turn on the solenoid valve
+    Serial.println("Solenoid Valve ON (Threshold Exceeded)");
   } else {
-    digitalWrite(RELAY_PIN, LOW); // Turn off Vthe solenoid valve
+    digitalWrite(RELAY_PIN, LOW); // Turn off the solenoid valve
+    Serial.println("Solenoid Valve OFF (Below Threshold)");
   }
 }
 
